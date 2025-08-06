@@ -88,48 +88,32 @@ func GetGuestbook(offset, limit int) (*types.GuestbookGetResponse, error) {
 	return guestbookGetResponse, nil
 }
 
-
 func CreateGuestbookPost(name, content, password string) error {
-	// 1. 비밀번호 해시
-	phash, err := util.HashPassword(password)
-	if err != nil {
-		return err
-	}
+	// phash, err := util.HashPassword(password)
+	// if err != nil {
+	// 	return err
+	// }
 
-	// 2. 트랜잭션 시작
-	tx, err := sqlDb.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback() // 에러 시 자동 롤백
-
-	// 3. INSERT 실행 (tx.Exec 사용)
-	result, err := tx.Exec(`
+	result, err := sqlDb.Exec(`
 		INSERT INTO guestbook (name, content, password, timestamp)
 		VALUES (?, ?, ?, ?)
-	`, name, content, phash, time.Now().Unix())
+	`, name, content, password, time.Now().Unix())
 	if err != nil {
 		fmt.Println(err)
 		return err
 	}
 
-	// 4. 영향을 받은 행 확인
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return err
 	}
+
 	if rowsAffected == 0 {
 		return fmt.Errorf("NO_ROWS_AFFECTED")
 	}
 
-	// 5. 트랜잭션 커밋
-	if err := tx.Commit(); err != nil {
-		return err
-	}
-
 	return nil
 }
-
 
 func DeleteGuestbookPost(id int, password string) error {
 	passwordMatch := false
@@ -160,7 +144,7 @@ func DeleteGuestbookPost(id int, password string) error {
 			return fmt.Errorf("NO_GUESTBOOK_POST_FOUND")
 		}
 
-		if util.CheckPasswordHash(password, phash) {
+		if password == phash {
 			passwordMatch = true
 		}
 	}
